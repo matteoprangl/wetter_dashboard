@@ -81,7 +81,7 @@ if data:
     if "selected_day" not in st.session_state:
         st.session_state.selected_day = None
 
-    # Wenn ein Tag ausgewählt wurde -> Zeige die kompakte Stunden-Leiste
+    # Wenn ein Tag ausgewählt wurde -> Horizontale Wisch-Ansicht
     if st.session_state.selected_day is not None:
         tag_datum = st.session_state.selected_day
         tag_str = pd.to_datetime(tag_datum).strftime("%A, %d. %b %Y")
@@ -91,46 +91,41 @@ if data:
             st.rerun()
 
         st.subheader(f"Stundenverlauf: {tag_str}")
-        st.caption("Kompakte Ansicht für den Tag:")
+        st.caption("👈 Nach links und rechts wischen:")
 
         df_stunden_heute = df_hourly[df_hourly["Zeit"].dt.date == tag_datum]
 
         if not df_stunden_heute.empty:
-            # Wir nutzen einen eleganten Trick: Kleine Blöcke in einer Schleife 
-            # mit reduziertem Text, damit es auf dem Handy kompakt und übersichtlich bleibt.
-            # Statt langer Tabellen nutzen wir kleine Kachel-Boxen nebeneinander in 4er-Gruppen:
+            # Horizontaler Scroll-Container für echtes Wischen auf dem Smartphone
+            html_content = """
+            <div style="display: flex; overflow-x: auto; gap: 12px; padding: 10px 0; -webkit-overflow-scrolling: touch; scrollbar-width: thin;">
+            """
+            for _, row in df_stunden_heute.iterrows():
+                uhrzeit = row["Zeit"].strftime("%H:%M")
+                temp = round(row["Temperatur"])
+                regen = row["Regen-Chance"]
+                code = row["Code"]
+                h_emoji, _ = get_weather_description(code)
+                
+                html_content += f"""
+                <div style="flex: 0 0 auto; background: rgba(150,150,150,0.08); border: 1px solid rgba(150,150,150,0.2); border-radius: 14px; padding: 14px 12px; text-align: center; min-width: 80px;">
+                    <div style="font-size: 13px; opacity: 0.7; margin-bottom: 6px;">{uhrzeit}</div>
+                    <div style="font-size: 26px; margin-bottom: 6px;">{h_emoji}</div>
+                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 6px;">{temp}°</div>
+                    <div style="font-size: 12px; color: #3b82f6;">💧 {regen}%</div>
+                </div>
+                """
+            html_content += "</div>"
             
-            stunden_liste = df_stunden_heute.to_dict('records')
-            
-            # Wir zeigen immer 4 Stunden in einer Reihe nebeneinander
-            for i in range(0, len(stunden_liste), 4):
-                cols = st.columns(4)
-                for j in range(4):
-                    if i + j < len(stunden_liste):
-                        row = stunden_liste[i + j]
-                        uhrzeit = row["Zeit"].strftime("%H:%M")
-                        temp = round(row["Temperatur"])
-                        regen = row["Regen-Chance"]
-                        h_emoji, _ = get_weather_description(row["Code"])
-                        
-                        with cols[j]:
-                            st.markdown(
-                                f"<div style='border: 1px solid rgba(150,150,150,0.3); border-radius: 10px; padding: 8px; text-align: center; font-size: 13px;'>"
-                                f"<b>{uhrzeit}</b><br>"
-                                f"<span style='font-size: 20px;'>{h_emoji}</span><br>"
-                                f"<b>{temp}°C</b><br>"
-                                f"<span style='color: #3b82f6; font-size: 11px;'>💧{regen}%</span>"
-                                f"</div>",
-                                unsafe_allow_html=True
-                            )
-                st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
+            # WICHTIG: unsafe_allow_html=True sorgt dafür, dass es als Design dargestellt wird und nicht als Code-Text!
+            st.markdown(html_content, unsafe_allow_html=True)
         else:
             st.info("Keine Daten für diesen Tag.")
 
     else:
         # --- DIE 14-TAGE-ÜBERSICHT ---
         st.subheader("📅 14-Tage-Vorschau")
-        st.caption("Tippe auf einen Tag, um die Stunden kompakt anzusehen:")
+        st.caption("Tippe auf einen Tag für die Stunden zum Wischen:")
 
         for index, row in df_daily.iterrows():
             tag_datum = row["Datum"].date()
