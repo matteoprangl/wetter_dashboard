@@ -19,7 +19,7 @@ def get_weather_description(code):
         55: ("🌧️", "Dichter Nieselregen"),
         61: ("🌧️", "Leichter Regen"),
         63: ("🌧️", "Mäßiger Regen"),
-        65: ("Starker Regen", "Starker Regen"),
+        65: ("🌧️", "Starker Regen"),
         71: ("🌨️", "Leichter Schneefall"),
         73: ("🌨️", "Mäßiger Schneefall"),
         75: ("🌨️", "Starker Schneefall"),
@@ -81,7 +81,7 @@ if data:
     if "selected_day" not in st.session_state:
         st.session_state.selected_day = None
 
-    # Wenn ein Tag ausgewählt wurde -> Zeige die Stunden im sauberen Kachel-Grid
+    # Wenn ein Tag ausgewählt wurde -> Zeige die kompakte Stunden-Leiste
     if st.session_state.selected_day is not None:
         tag_datum = st.session_state.selected_day
         tag_str = pd.to_datetime(tag_datum).strftime("%A, %d. %b %Y")
@@ -90,34 +90,47 @@ if data:
             st.session_state.selected_day = None
             st.rerun()
 
-        st.subheader(f"Stunden für {tag_str}")
-        st.caption("Tagesverlauf im Überblick:")
+        st.subheader(f"Stundenverlauf: {tag_str}")
+        st.caption("Kompakte Ansicht für den Tag:")
 
         df_stunden_heute = df_hourly[df_hourly["Zeit"].dt.date == tag_datum]
 
         if not df_stunden_heute.empty:
-            # Wir bauen eine schöne, saubere Liste, die auf jedem Smartphone perfekt aussieht
-            for _, row in df_stunden_heute.iterrows():
-                uhrzeit = row["Zeit"].strftime("%H:%M")
-                temp = round(row["Temperatur"])
-                regen = row["Regen-Chance"]
-                code = row["Code"]
-                h_emoji, h_desc = get_weather_description(code)
-                
-                # Jede Stunde als kleine, klare Info-Zeile mit Box-Design
-                col_h1, col_h2, col_h3, col_h4 = st.columns([2, 1, 2, 2])
-                col_h1.markdown(f"**{uhrzeit} Uhr**")
-                col_h2.markdown(f"{h_emoji}")
-                col_h3.markdown(f"**{temp}°C**")
-                col_h4.markdown(f"💧 {regen}%")
-                st.divider()
+            # Wir nutzen einen eleganten Trick: Kleine Blöcke in einer Schleife 
+            # mit reduziertem Text, damit es auf dem Handy kompakt und übersichtlich bleibt.
+            # Statt langer Tabellen nutzen wir kleine Kachel-Boxen nebeneinander in 4er-Gruppen:
+            
+            stunden_liste = df_stunden_heute.to_dict('records')
+            
+            # Wir zeigen immer 4 Stunden in einer Reihe nebeneinander
+            for i in range(0, len(stunden_liste), 4):
+                cols = st.columns(4)
+                for j in range(4):
+                    if i + j < len(stunden_liste):
+                        row = stunden_liste[i + j]
+                        uhrzeit = row["Zeit"].strftime("%H:%M")
+                        temp = round(row["Temperatur"])
+                        regen = row["Regen-Chance"]
+                        h_emoji, _ = get_weather_description(row["Code"])
+                        
+                        with cols[j]:
+                            st.markdown(
+                                f"<div style='border: 1px solid rgba(150,150,150,0.3); border-radius: 10px; padding: 8px; text-align: center; font-size: 13px;'>"
+                                f"<b>{uhrzeit}</b><br>"
+                                f"<span style='font-size: 20px;'>{h_emoji}</span><br>"
+                                f"<b>{temp}°C</b><br>"
+                                f"<span style='color: #3b82f6; font-size: 11px;'>💧{regen}%</span>"
+                                f"</div>",
+                                unsafe_allow_html=True
+                            )
+                st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
         else:
             st.info("Keine Daten für diesen Tag.")
 
     else:
         # --- DIE 14-TAGE-ÜBERSICHT ---
         st.subheader("📅 14-Tage-Vorschau")
-        st.caption("Tippe auf einen Tag für die Stunden-Details:")
+        st.caption("Tippe auf einen Tag, um die Stunden kompakt anzusehen:")
 
         for index, row in df_daily.iterrows():
             tag_datum = row["Datum"].date()
@@ -127,12 +140,11 @@ if data:
             day_code = row["Code"]
             day_emoji, day_desc = get_weather_description(day_code)
             
-            # Kachel-Optik für die 14 Tage
             col_k1, col_k2 = st.columns([3, 1])
             with col_k1:
                 st.markdown(f"**{day_emoji} {tag_str}** &nbsp;&nbsp; `{min_t}°C` ➔ `**{max_t}°C**` &nbsp; *({day_desc}*)")
             with col_k2:
-                if st.button("Details ➔", key=f"btn_{index}"):
+                if st.button("Stunden ➔", key=f"btn_{index}"):
                     st.session_state.selected_day = tag_datum
                     st.rerun()
             
