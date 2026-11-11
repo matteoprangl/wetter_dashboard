@@ -19,7 +19,7 @@ def get_weather_description(code):
         55: ("🌧️", "Dichter Nieselregen"),
         61: ("🌧️", "Leichter Regen"),
         63: ("🌧️", "Mäßiger Regen"),
-        65: ("🌧️", "Starker Regen"),
+        65: ("Starker Regen", "Starker Regen"),
         71: ("🌨️", "Leichter Schneefall"),
         73: ("🌨️", "Mäßiger Schneefall"),
         75: ("🌨️", "Starker Schneefall"),
@@ -81,7 +81,7 @@ if data:
     if "selected_day" not in st.session_state:
         st.session_state.selected_day = None
 
-    # Wenn ein Tag ausgewählt wurde -> Zeige die horizontale Wisch-Ansicht für die Stunden
+    # Wenn ein Tag ausgewählt wurde -> Zeige die Stunden im sauberen Kachel-Grid
     if st.session_state.selected_day is not None:
         tag_datum = st.session_state.selected_day
         tag_str = pd.to_datetime(tag_datum).strftime("%A, %d. %b %Y")
@@ -90,40 +90,34 @@ if data:
             st.session_state.selected_day = None
             st.rerun()
 
-        st.subheader(f"Stundenverlauf: {tag_str}")
-        st.caption("👈 Nach links/rechts wischen für alle 24 Stunden:")
+        st.subheader(f"Stunden für {tag_str}")
+        st.caption("Tagesverlauf im Überblick:")
 
         df_stunden_heute = df_hourly[df_hourly["Zeit"].dt.date == tag_datum]
 
         if not df_stunden_heute.empty:
-            # Horizontale Scroll-Box im modernen App-Style (wie auf deinem Screenshot)
-            html_content = """
-            <div style="display: flex; overflow-x: auto; gap: 12px; padding: 10px 0; scrollbar-width: thin;">
-            """
+            # Wir bauen eine schöne, saubere Liste, die auf jedem Smartphone perfekt aussieht
             for _, row in df_stunden_heute.iterrows():
                 uhrzeit = row["Zeit"].strftime("%H:%M")
                 temp = round(row["Temperatur"])
                 regen = row["Regen-Chance"]
                 code = row["Code"]
-                h_emoji, _ = get_weather_description(code)
+                h_emoji, h_desc = get_weather_description(code)
                 
-                html_content += f"""
-                <div style="flex: 0 0 auto; background: rgba(150,150,150,0.1); border: 1px solid rgba(150,150,150,0.2); border-radius: 14px; padding: 14px 10px; text-align: center; min-width: 80px;">
-                    <div style="font-size: 13px; opacity: 0.7; margin-bottom: 6px;">{uhrzeit}</div>
-                    <div style="font-size: 26px; margin-bottom: 6px;">{h_emoji}</div>
-                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 6px;">{temp}°</div>
-                    <div style="font-size: 12px; color: #3b82f6;">💧 {regen}%</div>
-                </div>
-                """
-            html_content += "</div>"
-            st.markdown(html_content, unsafe_allow_html=True)
+                # Jede Stunde als kleine, klare Info-Zeile mit Box-Design
+                col_h1, col_h2, col_h3, col_h4 = st.columns([2, 1, 2, 2])
+                col_h1.markdown(f"**{uhrzeit} Uhr**")
+                col_h2.markdown(f"{h_emoji}")
+                col_h3.markdown(f"**{temp}°C**")
+                col_h4.markdown(f"💧 {regen}%")
+                st.divider()
         else:
             st.info("Keine Daten für diesen Tag.")
 
     else:
         # --- DIE 14-TAGE-ÜBERSICHT ---
         st.subheader("📅 14-Tage-Vorschau")
-        st.caption("Tippe auf einen Tag, um die Stunden zum Wischen zu öffnen:")
+        st.caption("Tippe auf einen Tag für die Stunden-Details:")
 
         for index, row in df_daily.iterrows():
             tag_datum = row["Datum"].date()
@@ -133,11 +127,12 @@ if data:
             day_code = row["Code"]
             day_emoji, day_desc = get_weather_description(day_code)
             
+            # Kachel-Optik für die 14 Tage
             col_k1, col_k2 = st.columns([3, 1])
             with col_k1:
                 st.markdown(f"**{day_emoji} {tag_str}** &nbsp;&nbsp; `{min_t}°C` ➔ `**{max_t}°C**` &nbsp; *({day_desc}*)")
             with col_k2:
-                if st.button("Stunden ➔", key=f"btn_{index}"):
+                if st.button("Details ➔", key=f"btn_{index}"):
                     st.session_state.selected_day = tag_datum
                     st.rerun()
             
