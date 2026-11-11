@@ -2,10 +2,8 @@ import streamlit as st
 import pandas as pd
 from weather_api import get_weather_data
 
-# Seiteneinstellung für das Smartphone optimieren
 st.set_page_config(page_title="Mein Wetter", page_icon="⛅", layout="centered")
 
-# --- WMO Wetter-Code Übersetzung in Emojis & Klartext ---
 def get_weather_description(code):
     weather_mapping = {
         0: ("☀️", "Klarer Himmel"),
@@ -27,7 +25,6 @@ def get_weather_description(code):
     }
     return weather_mapping.get(code, ("🌦️", "Unbekannt"))
 
-# --- ORTSAUSWAHL ---
 st.title("⛅ Wetter")
 
 staedte = {
@@ -43,7 +40,6 @@ staedte = {
 selected_city = st.selectbox("📍 Standort wählen:", list(staedte.keys()))
 lat, lon = staedte[selected_city]
 
-# Wetter-Daten laden
 data = get_weather_data(lat, lon)
 
 if data:
@@ -63,7 +59,6 @@ if data:
         "Code": daily.get("weather_code")
     })
 
-    # --- OBEN: AKTUELLES WETTER ---
     current_temp = round(df_hourly.loc[0, "Temperatur"])
     current_code = df_hourly.loc[0, "Code"]
     emoji, beschreibung = get_weather_description(current_code)
@@ -77,11 +72,9 @@ if data:
         st.markdown(f"**{current_temp}°C** &bull; {beschreibung}")
     st.markdown("---")
 
-    # --- SESSION STATE FÜR DIE DETAILANSICHT ---
     if "selected_day" not in st.session_state:
         st.session_state.selected_day = None
 
-    # Wenn ein Tag ausgewählt wurde -> Horizontale Wisch-Ansicht
     if st.session_state.selected_day is not None:
         tag_datum = st.session_state.selected_day
         tag_str = pd.to_datetime(tag_datum).strftime("%A, %d. %b %Y")
@@ -96,10 +89,8 @@ if data:
         df_stunden_heute = df_hourly[df_hourly["Zeit"].dt.date == tag_datum]
 
         if not df_stunden_heute.empty:
-            # Horizontaler Scroll-Container für echtes Wischen auf dem Smartphone
-            html_content = """
-            <div style="display: flex; overflow-x: auto; gap: 12px; padding: 10px 0; -webkit-overflow-scrolling: touch; scrollbar-width: thin;">
-            """
+            # WICHTIG: Keine Einrückung hier, damit es kein Markdown-Codeblock wird!
+            html_content = '<div style="display: flex; overflow-x: auto; gap: 12px; padding: 10px 0; -webkit-overflow-scrolling: touch; scrollbar-width: thin;">'
             for _, row in df_stunden_heute.iterrows():
                 uhrzeit = row["Zeit"].strftime("%H:%M")
                 temp = round(row["Temperatur"])
@@ -107,23 +98,14 @@ if data:
                 code = row["Code"]
                 h_emoji, _ = get_weather_description(code)
                 
-                html_content += f"""
-                <div style="flex: 0 0 auto; background: rgba(150,150,150,0.08); border: 1px solid rgba(150,150,150,0.2); border-radius: 14px; padding: 14px 12px; text-align: center; min-width: 80px;">
-                    <div style="font-size: 13px; opacity: 0.7; margin-bottom: 6px;">{uhrzeit}</div>
-                    <div style="font-size: 26px; margin-bottom: 6px;">{h_emoji}</div>
-                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 6px;">{temp}°</div>
-                    <div style="font-size: 12px; color: #3b82f6;">💧 {regen}%</div>
-                </div>
-                """
-            html_content += "</div>"
+                html_content += f'<div style="flex: 0 0 auto; background: rgba(150,150,150,0.08); border: 1px solid rgba(150,150,150,0.2); border-radius: 14px; padding: 14px 12px; text-align: center; min-width: 80px;"><div style="font-size: 13px; opacity: 0.7; margin-bottom: 6px;">{uhrzeit}</div><div style="font-size: 26px; margin-bottom: 6px;">{h_emoji}</div><div style="font-size: 16px; font-weight: bold; margin-bottom: 6px;">{temp}°</div><div style="font-size: 12px; color: #3b82f6;">💧 {regen}%</div></div>'
+            html_content += '</div>'
             
-            # WICHTIG: unsafe_allow_html=True sorgt dafür, dass es als Design dargestellt wird und nicht als Code-Text!
             st.markdown(html_content, unsafe_allow_html=True)
         else:
             st.info("Keine Daten für diesen Tag.")
 
     else:
-        # --- DIE 14-TAGE-ÜBERSICHT ---
         st.subheader("📅 14-Tage-Vorschau")
         st.caption("Tippe auf einen Tag für die Stunden zum Wischen:")
 
