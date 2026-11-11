@@ -78,70 +78,66 @@ if data:
     st.markdown("---")
 
     # --- SESSION STATE FÜR DIE DETAILANSICHT ---
-    # Das merkt sich, welchen Tag der Nutzer angeklickt hat, wie eine echte App-Navigation
     if "selected_day" not in st.session_state:
         st.session_state.selected_day = None
 
-    # Wenn ein Tag ausgewählt wurde, zeigen wir die Detail-Ansicht im "Swipe-Stil"
+    # Wenn ein Tag ausgewählt wurde -> Zeige die horizontale Wisch-Ansicht für die Stunden
     if st.session_state.selected_day is not None:
         tag_datum = st.session_state.selected_day
         tag_str = pd.to_datetime(tag_datum).strftime("%A, %d. %b %Y")
         
-        # Zurück-Button
         if st.button("⬅️ Zurück zur 14-Tage-Übersicht"):
             st.session_state.selected_day = None
             st.rerun()
 
-        st.subheader(f"📅 Details für {tag_str}")
-        st.caption("Stündlicher Verlauf im Überblick:")
+        st.subheader(f"Stundenverlauf: {tag_str}")
+        st.caption("👈 Nach links/rechts wischen für alle 24 Stunden:")
 
-        # Filtere die Stunden für diesen Tag
         df_stunden_heute = df_hourly[df_hourly["Zeit"].dt.date == tag_datum]
 
         if not df_stunden_heute.empty:
-            # Wir bauen kleine Kacheln/Spalten für jede Stunde nebeneinander (wie ein Swipe-Bereich)
-            # Damit es übersichtlich bleibt, zeigen wir alle 3 Stunden einen kompakten Block oder horizontal
-            cols = st.columns(len(df_stunden_heute))
-            
-            # Da 24 Spalten nebeneinander auf dem Handy zu klein wären, 
-            # lösen wir es über eine schicke, kompakte Horizontaltabelle oder Kachel-Container:
-            for idx, row in df_stunden_heute.iterrows():
+            # Horizontale Scroll-Box im modernen App-Style (wie auf deinem Screenshot)
+            html_content = """
+            <div style="display: flex; overflow-x: auto; gap: 12px; padding: 10px 0; scrollbar-width: thin;">
+            """
+            for _, row in df_stunden_heute.iterrows():
                 uhrzeit = row["Zeit"].strftime("%H:%M")
                 temp = round(row["Temperatur"])
                 regen = row["Regen-Chance"]
                 code = row["Code"]
                 h_emoji, _ = get_weather_description(code)
                 
-                # Jede Stunde bekommt eine kleine, moderne Karte nebeneinander/untereinander in Blöcken
-                with st.container():
-                    col_u, col_i, col_t, col_r = st.columns([2, 1, 1, 1])
-                    col_u.write(f"⏰ **{uhrzeit} Uhr**")
-                    col_i.write(h_emoji)
-                    col_t.write(f"🌡️ **{temp}°C**")
-                    col_r.write(f"🌧️ {regen}%")
-                    st.divider()
+                html_content += f"""
+                <div style="flex: 0 0 auto; background: rgba(150,150,150,0.1); border: 1px solid rgba(150,150,150,0.2); border-radius: 14px; padding: 14px 10px; text-align: center; min-width: 80px;">
+                    <div style="font-size: 13px; opacity: 0.7; margin-bottom: 6px;">{uhrzeit}</div>
+                    <div style="font-size: 26px; margin-bottom: 6px;">{h_emoji}</div>
+                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 6px;">{temp}°</div>
+                    <div style="font-size: 12px; color: #3b82f6;">💧 {regen}%</div>
+                </div>
+                """
+            html_content += "</div>"
+            st.markdown(html_content, unsafe_allow_html=True)
         else:
             st.info("Keine Daten für diesen Tag.")
 
     else:
-        # --- DIE 14-TAGE-ÜBERSICHT (KACHELN) ---
+        # --- DIE 14-TAGE-ÜBERSICHT ---
         st.subheader("📅 14-Tage-Vorschau")
-        st.caption("Klicke auf einen Tag, um die Stunden-Ansicht zu öffnen:")
+        st.caption("Tippe auf einen Tag, um die Stunden zum Wischen zu öffnen:")
 
         for index, row in df_daily.iterrows():
             tag_datum = row["Datum"].date()
-            tag_str = row["Datum"].strftime("%a, %d. %b") # z.B. Mo, 16. Nov
+            tag_str = row["Datum"].strftime("%a, %d. %b")
             max_t = round(row["Max Temp"])
             min_t = round(row["Min Temp"])
             day_code = row["Code"]
             day_emoji, day_desc = get_weather_description(day_code)
             
-            # Jede Zeile ist jetzt ein schicker Klick-Button, der sich wie eine App anfühlt
-            col_kachel_1, col_kachel_2 = st.columns([3, 1])
-            with col_kachel_1:
+            col_k1, col_k2 = st.columns([3, 1])
+            with col_k1:
                 st.markdown(f"**{day_emoji} {tag_str}** &nbsp;&nbsp; `{min_t}°C` ➔ `**{max_t}°C**` &nbsp; *({day_desc}*)")
-            with col_kachel_2:
-                if st.button("Details ➔", key=f"btn_{index}"):
+            with col_k2:
+                if st.button("Stunden ➔", key=f"btn_{index}"):
                     st.session_state.selected_day = tag_datum
                     st.rerun()
             
